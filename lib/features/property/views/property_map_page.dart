@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:zoneer_mobile/core/providers/navigation_provider.dart';
 import 'package:zoneer_mobile/core/utils/app_colors.dart';
 import 'package:zoneer_mobile/core/utils/app_config.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -13,6 +12,7 @@ import 'package:zoneer_mobile/features/property/models/property_model.dart';
 import 'package:zoneer_mobile/features/property/providers/map_focus_provider.dart';
 import 'package:zoneer_mobile/features/property/viewmodels/properties_viewmodel.dart';
 import 'package:zoneer_mobile/features/property/viewmodels/property_filter_provider.dart';
+import 'package:zoneer_mobile/features/property/viewmodels/visible_properties_provider.dart';
 import 'package:zoneer_mobile/features/property/widgets/property_filter_sheet.dart';
 import 'package:zoneer_mobile/features/property/widgets/property_map_controls.dart';
 import 'package:zoneer_mobile/features/property/widgets/property_map_detail_sheet.dart';
@@ -30,11 +30,15 @@ class PropertyMapPage extends ConsumerStatefulWidget {
 class _PropertyMapPageState extends ConsumerState<PropertyMapPage> {
   final MapController _mapController = MapController();
   final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocus = FocusNode();
 
   PropertyModel? _selectedProperty;
 
   /// Property whose thumbnail callout is visible (price-pin mode only).
   PropertyModel? _calloutProperty;
+
+  /// Whether to show the search results dropdown.
+  bool _showResults = false;
 
   // Map style
   bool _isSatellite = false;
@@ -49,6 +53,11 @@ class _PropertyMapPageState extends ConsumerState<PropertyMapPage> {
     super.initState();
     _loadMapStyle();
     _runCoordinateMigration();
+    _searchFocus.addListener(() {
+      if (!_searchFocus.hasFocus) {
+        setState(() => _showResults = false);
+      }
+    });
   }
 
   Future<void> _loadMapStyle() async {
@@ -91,24 +100,44 @@ class _PropertyMapPageState extends ConsumerState<PropertyMapPage> {
         .where((p) => p.latitude != null && p.longitude != null)
         .toList();
 
+    // Text search
     if (filter.searchQuery != null && filter.searchQuery!.isNotEmpty) {
       final q = filter.searchQuery!.toLowerCase();
       filtered = filtered.where((p) {
-        return p.address.toLowerCase().contains(q) ||
+        return (p.name?.toLowerCase().contains(q) ?? false) ||
+            p.address.toLowerCase().contains(q) ||
             (p.description?.toLowerCase().contains(q) ?? false);
       }).toList();
     }
 
-    filtered = filtered
-        .where((p) => p.price >= filter.minPrice && p.price <= filter.maxPrice)
-        .toList();
+    // Price range — only apply when the user has actually set a filter
+    if (filter.hasActiveFilters) {
+      filtered = filtered
+          .where((p) => p.price >= filter.minPrice && p.price <= filter.maxPrice)
+          .toList();
+    }
 
+    // Beds
     if (filter.beds != null) {
       if (filter.beds == 5) {
         filtered = filtered.where((p) => p.bedroom >= 5).toList();
       } else {
         filtered = filtered.where((p) => p.bedroom == filter.beds).toList();
       }
+    }
+
+    // Property type — use propertyType field, fall back to keyword match for
+    // legacy properties that haven't been re-edited yet.
+    if (filter.propertyType != null) {
+      final type = filter.propertyType!.toLowerCase();
+      filtered = filtered.where((p) {
+        if (p.propertyType != null) {
+          return p.propertyType!.toLowerCase() == type;
+        }
+        final haystack =
+            '${p.address} ${p.description ?? ''} ${p.name ?? ''}'.toLowerCase();
+        return haystack.contains(type);
+      }).toList();
     }
 
     return filtered;
@@ -173,8 +202,8 @@ class _PropertyMapPageState extends ConsumerState<PropertyMapPage> {
         Marker(
           // Fixed size always — anchor never repositions on selection.
           // Visual size change is handled by AnimatedScale inside the widget.
-          width: 125.0,
-          height: 128.0,
+          width: PropertyMapMarker.markerWidth,
+          height: PropertyMapMarker.markerHeight,
           point: LatLng(property.latitude!, property.longitude!),
           alignment: Alignment.topCenter,
           child: PropertyMapMarker(
@@ -218,8 +247,8 @@ class _PropertyMapPageState extends ConsumerState<PropertyMapPage> {
   /// Uses the same thumbnail-card widget so the arrow points down to the pin.
   Marker _buildCalloutMarker(PropertyModel property, List<PropertyModel> all) {
     return Marker(
-      width: 125.0,
-      height: 128.0,
+      width: PropertyMapMarker.markerWidth,
+      height: PropertyMapMarker.markerHeight,
       point: LatLng(property.latitude!, property.longitude!),
       alignment: Alignment.topCenter,
       child: PropertyMapMarker(
@@ -258,7 +287,7 @@ class _PropertyMapPageState extends ConsumerState<PropertyMapPage> {
 
   @override
   Widget build(BuildContext context) {
-    final propertiesAsync = ref.watch(propertiesViewModelProvider);
+    final propertiesAsync = ref.watch(visiblePropertiesProvider);
     final filter = ref.watch(propertyFilterProvider);
     final permissionState = ref.watch(locationPermissionProvider);
 
@@ -293,8 +322,12 @@ class _PropertyMapPageState extends ConsumerState<PropertyMapPage> {
                 flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
               ),
               onTap: (tapPosition, point) {
-                if (_calloutProperty != null) {
-                  setState(() => _calloutProperty = null);
+                if (_calloutProperty != null || _showResults) {
+                  _searchFocus.unfocus();
+                  setState(() {
+                    _calloutProperty = null;
+                    _showResults = false;
+                  });
                 }
               },
               onPositionChanged: (camera, hasGesture) {
@@ -404,16 +437,40 @@ class _PropertyMapPageState extends ConsumerState<PropertyMapPage> {
                     Expanded(
                       child: TextField(
                         controller: _searchController,
-                        onChanged: (value) => ref
-                            .read(propertyFilterProvider.notifier)
-                            .updateSearchQuery(value),
+                        focusNode: _searchFocus,
+                        onChanged: (value) {
+                          ref
+                              .read(propertyFilterProvider.notifier)
+                              .updateSearchQuery(value);
+                          setState(
+                            () => _showResults = value.isNotEmpty,
+                          );
+                        },
+                        onTap: () {
+                          if (_searchController.text.isNotEmpty) {
+                            setState(() => _showResults = true);
+                          }
+                        },
                         decoration: InputDecoration(
-                          hintText: 'Search properties...',
+                          hintText: 'Search by name or address...',
                           hintStyle: TextStyle(color: Colors.grey[400]),
                           prefixIcon: Icon(
                             Icons.search,
                             color: Colors.grey[600],
                           ),
+                          suffixIcon: _searchController.text.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear, size: 18),
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    ref
+                                        .read(propertyFilterProvider.notifier)
+                                        .updateSearchQuery('');
+                                    setState(() => _showResults = false);
+                                    _searchFocus.unfocus();
+                                  },
+                                )
+                              : null,
                           border: InputBorder.none,
                           contentPadding: const EdgeInsets.symmetric(
                             horizontal: 16,
@@ -455,7 +512,108 @@ class _PropertyMapPageState extends ConsumerState<PropertyMapPage> {
             ),
           ),
 
+          // ── Search results dropdown ───────────────────────────
+          if (_showResults && filteredProperties.isNotEmpty)
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 66,
+              left: 16,
+              right: 16,
+              child: Material(
+                borderRadius: BorderRadius.circular(12),
+                elevation: 6,
+                shadowColor: Colors.black26,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 280),
+                    child: ListView.separated(
+                      padding: EdgeInsets.zero,
+                      shrinkWrap: true,
+                      itemCount: filteredProperties.length > 8
+                          ? 8
+                          : filteredProperties.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final p = filteredProperties[index];
+                        return ListTile(
+                          dense: true,
+                          leading: ClipRRect(
+                            borderRadius: BorderRadius.circular(6),
+                            child: p.thumbnail.isNotEmpty
+                                ? Image.network(
+                                    p.thumbnail,
+                                    width: 44,
+                                    height: 44,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Container(
+                                      width: 44,
+                                      height: 44,
+                                      color: Colors.grey[200],
+                                      child: const Icon(
+                                        Icons.image_not_supported,
+                                        size: 18,
+                                      ),
+                                    ),
+                                  )
+                                : Container(
+                                    width: 44,
+                                    height: 44,
+                                    color: Colors.grey[200],
+                                    child: const Icon(
+                                      Icons.home_outlined,
+                                      size: 18,
+                                    ),
+                                  ),
+                          ),
+                          title: Text(
+                            p.name?.isNotEmpty == true
+                                ? p.name!
+                                : p.address,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          subtitle: Text(
+                            p.name?.isNotEmpty == true ? p.address : '',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                          trailing: Text(
+                            '\$${p.price.toInt()}/mo',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          onTap: () {
+                            _searchFocus.unfocus();
+                            setState(() => _showResults = false);
+                            if (p.latitude != null && p.longitude != null) {
+                              _mapController.move(
+                                LatLng(p.latitude!, p.longitude!),
+                                16,
+                              );
+                            }
+                            _onMarkerTapped(p, filteredProperties);
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
           // ── "X properties found" pill ─────────────────────────
+          if (!_showResults)
           Positioned(
             top: MediaQuery.of(context).padding.top + 76,
             left: 16,
@@ -528,16 +686,6 @@ class _PropertyMapPageState extends ConsumerState<PropertyMapPage> {
               ),
             ),
           ),
-          Positioned(
-            bottom: 30,
-            left: 10,
-            child: IconButton(
-              onPressed: () {
-                ref.read(mapTabViewProvider.notifier).showSearch();
-              },
-              icon: const Icon(Icons.list_alt, color: AppColors.primary),
-            ),
-          ),
         ],
       ),
     );
@@ -546,6 +694,7 @@ class _PropertyMapPageState extends ConsumerState<PropertyMapPage> {
   @override
   void dispose() {
     _searchController.dispose();
+    _searchFocus.dispose();
     _mapController.dispose();
     super.dispose();
   }

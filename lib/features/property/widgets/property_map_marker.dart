@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:zoneer_mobile/core/utils/app_colors.dart';
 import 'package:zoneer_mobile/features/property/models/enums/property_status.dart';
 import 'package:zoneer_mobile/features/property/models/property_model.dart';
+import 'package:zoneer_mobile/shared/models/enums/verify_status.dart';
 
 /// Thumbnail card marker shown on the map.
 ///
@@ -18,10 +19,10 @@ class PropertyMapMarker extends StatelessWidget {
   final VoidCallback onTap;
 
   /// These MUST match the Marker(width:, height:) declared in the map page.
-  static const double markerWidth = 125.0;
-  static const double markerHeight = 128.0; // cardHeight(120) + tailHeight(8)
+  static const double markerWidth = 96.0;
+  static const double markerHeight = 100.0; // cardHeight(92) + tailHeight(8)
   static const double _tailHeight = 8.0;
-  static const double _cardHeight = markerHeight - _tailHeight; // 120.0
+  static const double _cardHeight = markerHeight - _tailHeight; // 92.0
 
   const PropertyMapMarker({
     super.key,
@@ -40,8 +41,13 @@ class PropertyMapMarker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isRented = property.propertyStatus == PropertyStatus.rented;
-    final borderColor = isSelected ? AppColors.primary : Colors.white;
-    final borderWidth = isSelected ? 2.0 : 1.5;
+    final isPending = property.verifyStatus != VerifyStatus.verified;
+    final borderColor = isPending
+        ? Colors.orange
+        : isSelected
+            ? AppColors.primary
+            : Colors.white;
+    final borderWidth = isSelected || isPending ? 2.0 : 1.5;
 
     return GestureDetector(
       onTap: onTap,
@@ -83,6 +89,7 @@ class PropertyMapMarker extends StatelessWidget {
                             children: [
                               _buildImage(isRented),
                               if (isRented) _buildRentedOverlay(),
+                              if (isPending) _buildPendingOverlay(),
                             ],
                           ),
                         ),
@@ -106,7 +113,7 @@ class PropertyMapMarker extends StatelessWidget {
                             color:
                                 isSelected ? Colors.white : Colors.black87,
                             fontWeight: FontWeight.bold,
-                            fontSize: 11,
+                            fontSize: 10,
                           ),
                           textAlign: TextAlign.center,
                         ),
@@ -122,7 +129,11 @@ class PropertyMapMarker extends StatelessWidget {
               CustomPaint(
                 size: const Size(16, _tailHeight),
                 painter: _TrianglePainter(
-                  color: isSelected ? AppColors.primary : Colors.white,
+                  color: isPending
+                      ? Colors.orange
+                      : isSelected
+                          ? AppColors.primary
+                          : Colors.white,
                 ),
               ),
             ],
@@ -170,6 +181,28 @@ class PropertyMapMarker extends StatelessWidget {
         ),
         child: const Text(
           'Rented',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 8,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPendingOverlay() {
+    return Positioned(
+      top: 4,
+      left: 4,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+        decoration: BoxDecoration(
+          color: Colors.orange.withValues(alpha: 0.9),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: const Text(
+          'Pending',
           style: TextStyle(
             color: Colors.white,
             fontSize: 8,
