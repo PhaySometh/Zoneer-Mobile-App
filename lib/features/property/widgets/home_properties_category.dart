@@ -1,38 +1,39 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zoneer_mobile/core/utils/app_colors.dart';
+import 'package:zoneer_mobile/features/property/providers/home_category_provider.dart';
 
-class HomePropertiesCategory extends StatefulWidget {
+class HomePropertiesCategory extends ConsumerWidget {
   const HomePropertiesCategory({super.key});
 
-  @override
-  State<HomePropertiesCategory> createState() => _HomePropertiesCategoryState();
-}
-
-class _HomePropertiesCategoryState extends State<HomePropertiesCategory> {
-  int _selectedIndex = 0;
-
-  final List<Map<String, dynamic>> categories = [
-    {'icon': Icons.home_outlined, 'label': 'Rent House'},
-    {'icon': Icons.apartment_outlined, 'label': 'Apartment'},
-    {'icon': Icons.villa_outlined, 'label': 'Resident'},
-    {'icon': Icons.cabin_outlined, 'label': 'Traditional'},
+  static const _categories = [
+    (label: 'All', value: null, icon: Icons.grid_view_outlined),
+    (label: 'Rent House', value: 'house', icon: Icons.home_outlined),
+    (label: 'Apartment', value: 'apartment', icon: Icons.apartment_outlined),
+    (label: 'Resident', value: 'resident', icon: Icons.villa_outlined),
+    (label: 'Traditional', value: 'traditional', icon: Icons.cabin_outlined),
   ];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selected = ref.watch(homeCategoryProvider);
+
     return SizedBox(
       height: 44,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        itemCount: categories.length,
+        itemCount: _categories.length,
         itemBuilder: (context, index) {
-          final isSelected = _selectedIndex == index;
+          final cat = _categories[index];
+          final isSelected = selected == cat.value;
           return GestureDetector(
-            onTap: () => setState(() => _selectedIndex = index),
+            onTap: () =>
+                ref.read(homeCategoryProvider.notifier).select(cat.value),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               margin: const EdgeInsets.only(right: 10),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
                 color: isSelected ? AppColors.primary : AppColors.white,
                 borderRadius: BorderRadius.circular(30),
@@ -62,13 +63,13 @@ class _HomePropertiesCategoryState extends State<HomePropertiesCategory> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    categories[index]['icon'] as IconData,
+                    cat.icon,
                     size: 20,
                     color: isSelected ? AppColors.white : AppColors.grey,
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    categories[index]['label'] as String,
+                    cat.label,
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: isSelected
