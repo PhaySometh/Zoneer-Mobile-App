@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:zoneer_mobile/features/property/models/property_filter_model.dart';
 import 'package:zoneer_mobile/features/property/viewmodels/property_filter_provider.dart';
 
 class PropertyFilterSheet extends ConsumerStatefulWidget {
@@ -52,7 +53,10 @@ class _PropertyFilterSheetState extends ConsumerState<PropertyFilterSheet> {
                 onPressed: () {
                   setState(() {
                     _selectedType = null;
-                    _priceRange = const RangeValues(10, 800);
+                    _priceRange = const RangeValues(
+                      PropertyFilterModel.defaultMinPrice,
+                      PropertyFilterModel.defaultMaxPrice,
+                    );
                     _selectedBeds = null;
                   });
                 },
@@ -90,9 +94,9 @@ class _PropertyFilterSheetState extends ConsumerState<PropertyFilterSheet> {
           const SizedBox(height: 8),
           RangeSlider(
             values: _priceRange,
-            min: 10,
-            max: 800,
-            divisions: 79,
+            min: PropertyFilterModel.defaultMinPrice,
+            max: PropertyFilterModel.defaultMaxPrice,
+            divisions: 100,
             activeColor: const Color(0xFFE91E63),
             labels: RangeLabels(
               '\$${_priceRange.start.round()}',

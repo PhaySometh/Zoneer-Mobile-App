@@ -5,8 +5,9 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:zoneer_mobile/core/providers/navigation_provider.dart';
 import 'package:zoneer_mobile/core/utils/app_colors.dart';
+import 'package:zoneer_mobile/features/property/providers/map_focus_provider.dart';
 import 'package:zoneer_mobile/features/inquiry/views/inquiry.dart';
 import 'package:zoneer_mobile/features/property/models/property_model.dart';
 import 'package:zoneer_mobile/features/property/viewmodels/properties_viewmodel.dart';
@@ -214,7 +215,9 @@ class _PropertyDetailPageState extends ConsumerState<PropertyDetailPage> {
                         children: [
                           Expanded(
                             child: Text(
-                              'House in ${property.address}',
+                              property.name?.isNotEmpty == true
+                                  ? property.name!
+                                  : 'House in ${property.address}',
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
@@ -339,21 +342,22 @@ class _PropertyDetailPageState extends ConsumerState<PropertyDetailPage> {
                           SizedBox(
                             width: double.infinity,
                             child: OutlinedButton.icon(
-                              onPressed: () async {
-                                final url = property.locationUrl?.trim();
-                                if (url == null || url.isEmpty) {
-                                  return;
-                                }
-                                final uri = Uri.parse(url);
-                                if (await canLaunchUrl(uri)) {
-                                  await launchUrl(
-                                    uri,
-                                    mode: LaunchMode.externalApplication,
-                                  );
-                                }
+                              onPressed: () {
+                                ref.read(mapFocusProvider.notifier).focus(
+                                  LatLng(
+                                    property.latitude!,
+                                    property.longitude!,
+                                  ),
+                                );
+                                ref
+                                    .read(navigationProvider.notifier)
+                                    .changeTab(NavigationTab.map);
+                                Navigator.of(context).popUntil(
+                                  (route) => route.isFirst,
+                                );
                               },
                               icon: const Icon(Icons.map_outlined, size: 18),
-                              label: const Text('Open in Google Maps'),
+                              label: const Text('View in Our Map'),
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: AppColors.primary,
                                 side: const BorderSide(color: AppColors.primary),
