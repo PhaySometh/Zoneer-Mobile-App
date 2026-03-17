@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:zoneer_mobile/core/utils/app_colors.dart';
 import 'package:zoneer_mobile/core/utils/app_decoration.dart';
 import 'package:zoneer_mobile/features/property/models/property_model.dart';
 import 'package:zoneer_mobile/features/property/repositories/property_repository.dart';
-import 'package:zoneer_mobile/features/property/viewmodels/properties_viewmodel.dart';
+import 'package:zoneer_mobile/features/property/viewmodels/my_properties_provider.dart';
 import 'package:zoneer_mobile/features/property/views/upload_property_screen.dart';
 
 class MyPropertiesScreen extends ConsumerStatefulWidget {
@@ -16,19 +15,9 @@ class MyPropertiesScreen extends ConsumerStatefulWidget {
 }
 
 class _MyPropertiesScreenState extends ConsumerState<MyPropertiesScreen> {
-  late String _userId;
-
   @override
   void initState() {
     super.initState();
-    _userId = Supabase.instance.client.auth.currentUser!.id;
-
-    // Load only this user's properties
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref
-          .read(propertiesViewModelProvider.notifier)
-          .loadLandlordProperties(_userId);
-    });
   }
 
   Future<void> _deleteProperty(String id) async {
@@ -61,9 +50,7 @@ class _MyPropertiesScreenState extends ConsumerState<MyPropertiesScreen> {
 
     try {
       // Optimistically remove from UI first for instant feedback
-      ref
-          .read(propertiesViewModelProvider.notifier)
-          .removePropertyFromState(id);
+      ref.read(myPropertiesProvider.notifier).removeFromState(id);
 
       // Show success message immediately
       if (mounted) {
@@ -76,14 +63,10 @@ class _MyPropertiesScreenState extends ConsumerState<MyPropertiesScreen> {
       await ref.read(propertyRepositoryProvider).deleteProperty(id);
 
       // Reload to ensure consistency with database
-      await ref
-          .read(propertiesViewModelProvider.notifier)
-          .loadLandlordProperties(_userId);
+      await ref.read(myPropertiesProvider.notifier).refresh();
     } catch (e) {
       // Reload the list to restore UI if delete failed
-      await ref
-          .read(propertiesViewModelProvider.notifier)
-          .loadLandlordProperties(_userId);
+      await ref.read(myPropertiesProvider.notifier).refresh();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Delete failed: ${e.toString()}')),
@@ -99,15 +82,13 @@ class _MyPropertiesScreenState extends ConsumerState<MyPropertiesScreen> {
         builder: (_) => UploadPropertyScreen(existingProperty: existing),
       ),
     );
-    // Refresh after returning
-    ref
-        .read(propertiesViewModelProvider.notifier)
-        .loadLandlordProperties(_userId);
+    // Refresh "My Properties" list after returning (does NOT touch global state)
+    ref.read(myPropertiesProvider.notifier).refresh();
   }
 
   @override
   Widget build(BuildContext context) {
-    final propertiesAsync = ref.watch(propertiesViewModelProvider);
+    final propertiesAsync = ref.watch(myPropertiesProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF6F6F6),
@@ -131,9 +112,7 @@ class _MyPropertiesScreenState extends ConsumerState<MyPropertiesScreen> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text(e.toString())),
         data: (properties) {
-          final myProperties = properties
-              .where((p) => p.landlordId == _userId)
-              .toList();
+          final myProperties = properties;
 
           if (myProperties.isEmpty) {
             return Center(
@@ -235,7 +214,7 @@ class _PropertyManageCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Status chip
+                // Status chip + price
                 Row(
                   children: [
                     _StatusChip(status: property.propertyStatus.value),
@@ -250,26 +229,48 @@ class _PropertyManageCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                // Address
+                const SizedBox(height: 6),
+                // Name (left) + Location (right)
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(
-                      Icons.location_on_outlined,
-                      size: 16,
-                      color: Colors.black54,
-                    ),
-                    const SizedBox(width: 4),
                     Expanded(
                       child: Text(
-                        property.address,
+                        property.name?.isNotEmpty == true
+                            ? property.name!
+                            : property.address,
                         style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
                         ),
-                        maxLines: 1,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
+                    ),
+                    const SizedBox(width: 8),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.location_on_outlined,
+                          size: 14,
+                          color: Colors.black45,
+                        ),
+                        const SizedBox(width: 2),
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 120),
+                          child: Text(
+                            property.address,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.black45,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
