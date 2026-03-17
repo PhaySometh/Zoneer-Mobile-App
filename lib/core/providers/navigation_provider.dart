@@ -28,16 +28,3 @@ class NavigationTab {
   static const int profile = 3;
 }
 
-enum MapTabView { map, search }
-
-class MapTabViewNotifier extends Notifier<MapTabView> {
-  @override
-  MapTabView build() => MapTabView.map;
-
-  void showMap() => state = MapTabView.map;
-  void showSearch() => state = MapTabView.search;
-}
-
-final mapTabViewProvider = NotifierProvider<MapTabViewNotifier, MapTabView>(
-  MapTabViewNotifier.new
-);

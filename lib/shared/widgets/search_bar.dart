@@ -10,7 +10,6 @@ class SearchBarApp extends ConsumerWidget {
     return GestureDetector(
       onTap: () {
         ref.read(navigationProvider.notifier).changeTab(NavigationTab.map);
-        ref.read(mapTabViewProvider.notifier).showSearch();
       },
       child: Container(
         height: 55,
