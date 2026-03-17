@@ -77,6 +77,7 @@ class _UploadPropertyScreenState extends ConsumerState<UploadPropertyScreen> {
 
   final _formKey = GlobalKey<FormState>();
 
+  late final TextEditingController _nameController;
   late final TextEditingController _addressController;
   late final TextEditingController _priceController;
   late final TextEditingController _bedroomController;
@@ -91,6 +92,9 @@ class _UploadPropertyScreenState extends ConsumerState<UploadPropertyScreen> {
   // Existing storage URLs that the user removed — deleted from storage on submit
   final List<String> _removedExistingUrls = [];
 
+  // Property type
+  String? _selectedPropertyType;
+
   // Amenity selections
   final Set<String> _selectedPropertyFeatures = {};
   final Set<String> _selectedSecurityFeatures = {};
@@ -102,6 +106,7 @@ class _UploadPropertyScreenState extends ConsumerState<UploadPropertyScreen> {
   void initState() {
     super.initState();
     final p = widget.existingProperty;
+    _nameController = TextEditingController(text: p?.name ?? '');
     _addressController = TextEditingController(text: p?.address ?? '');
     _priceController = TextEditingController(
       text: p != null ? p.price.toString() : '',
@@ -116,6 +121,8 @@ class _UploadPropertyScreenState extends ConsumerState<UploadPropertyScreen> {
       text: p != null ? p.squareArea.toString() : '',
     );
     _descriptionController = TextEditingController(text: p?.description ?? '');
+
+    _selectedPropertyType = p?.propertyType;
 
     if (p?.latitude != null && p?.longitude != null) {
       _selectedLocation = LatLng(p!.latitude!, p.longitude!);
@@ -164,6 +171,7 @@ class _UploadPropertyScreenState extends ConsumerState<UploadPropertyScreen> {
 
   @override
   void dispose() {
+    _nameController.dispose();
     _addressController.dispose();
     _priceController.dispose();
     _bedroomController.dispose();
@@ -198,6 +206,26 @@ class _UploadPropertyScreenState extends ConsumerState<UploadPropertyScreen> {
     });
   }
 
+  Future<void> _pickMultiplePhotos() async {
+    final picker = ImagePicker();
+    final images = await picker.pickMultiImage(
+      maxHeight: 1200,
+      maxWidth: 1200,
+      imageQuality: 85,
+    );
+    if (images.isEmpty) return;
+    for (final image in images) {
+      if (_photos.length >= _maxPhotos) break;
+      final bytes = await image.readAsBytes();
+      final ext = image.path.split('.').last;
+      if (mounted) {
+        setState(() {
+          _photos.add(_PhotoEntry(bytes: bytes, ext: ext));
+        });
+      }
+    }
+  }
+
   void _removePhoto(int index) {
     setState(() {
       final photo = _photos[index];
@@ -213,7 +241,7 @@ class _UploadPropertyScreenState extends ConsumerState<UploadPropertyScreen> {
   // -------------------------------------------------------------------------
 
   Future<void> _openLocationPicker() async {
-    final result = await Navigator.push<LatLng>(
+    final result = await Navigator.push<PickedLocation>(
       context,
       MaterialPageRoute(
         builder: (_) =>
@@ -221,7 +249,13 @@ class _UploadPropertyScreenState extends ConsumerState<UploadPropertyScreen> {
       ),
     );
     if (result != null) {
-      setState(() => _selectedLocation = result);
+      setState(() => _selectedLocation = result.latlng);
+      // Auto-fill address from reverse geocode; fall back to coordinates
+      final addr = result.address?.isNotEmpty == true
+          ? result.address!
+          : '${result.latlng.latitude.toStringAsFixed(5)}, '
+              '${result.latlng.longitude.toStringAsFixed(5)}';
+      _addressController.text = addr;
     }
   }
 
@@ -247,6 +281,13 @@ class _UploadPropertyScreenState extends ConsumerState<UploadPropertyScreen> {
         const SnackBar(content: Text('Please pick a location on the map.')),
       );
       return;
+    }
+
+    // Ensure address always has a value (auto-fill with coordinates as last resort)
+    if (_addressController.text.trim().isEmpty) {
+      _addressController.text =
+          '${_selectedLocation!.latitude.toStringAsFixed(5)}, '
+          '${_selectedLocation!.longitude.toStringAsFixed(5)}';
     }
 
     final thumbnail = _photos[0];
@@ -279,6 +320,9 @@ class _UploadPropertyScreenState extends ConsumerState<UploadPropertyScreen> {
             additionalPhotos: additional,
             removedImageUrls: _removedExistingUrls,
             existingProperty: widget.existingProperty,
+            name: _nameController.text.trim().isEmpty
+                ? null
+                : _nameController.text.trim(),
             price: double.parse(_priceController.text.trim()),
             bedroom: int.parse(_bedroomController.text.trim()),
             bathroom: int.parse(_bathroomController.text.trim()),
@@ -286,10 +330,13 @@ class _UploadPropertyScreenState extends ConsumerState<UploadPropertyScreen> {
             address: _addressController.text.trim(),
             latitude: _selectedLocation!.latitude,
             longitude: _selectedLocation!.longitude,
-            description: _descriptionController.text.trim(),
+            description: _descriptionController.text.trim().isEmpty
+                ? null
+                : _descriptionController.text.trim(),
             propertyFeatures: propertyFeatures,
             securityFeatures: securityFeatures,
             badgeOptions: badgeOptions,
+            propertyType: _selectedPropertyType,
           );
 
       if (_selectedLocation != null) {
@@ -302,8 +349,11 @@ class _UploadPropertyScreenState extends ConsumerState<UploadPropertyScreen> {
             content: Text(
               _isEditing
                   ? 'Property updated successfully.'
-                  : 'Property uploaded successfully.',
+                  : 'Property uploaded! Pending admin verification — '
+                    'you can see it in My Properties now.',
             ),
+            duration: const Duration(seconds: 5),
+            behavior: SnackBarBehavior.floating,
           ),
         );
         Navigator.pop(context);
@@ -349,7 +399,7 @@ class _UploadPropertyScreenState extends ConsumerState<UploadPropertyScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // ── Photos ──────────────────────────────────────────────────
+              // ── 1. Photos ────────────────────────────────────────────────
               _buildCard(
                 title:
                     'Photos (${_photos.where((p) => p.hasImage).length}/$_maxPhotos)',
@@ -365,17 +415,77 @@ class _UploadPropertyScreenState extends ConsumerState<UploadPropertyScreen> {
 
               const SizedBox(height: 14),
 
-              // ── Location ────────────────────────────────────────────────
+              // ── 2. Property Info (name + type) ───────────────────────────
+              _buildCard(
+                title: 'Property Info',
+                children: [
+                  _buildField(
+                    controller: _nameController,
+                    label: 'Property Name',
+                    hint: 'e.g. Sunset Apartment, City View Room',
+                    icon: Icons.label_outline,
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'Required' : null,
+                  ),
+                  const SizedBox(height: 14),
+                  DropdownButtonFormField<String>(
+                    value: _selectedPropertyType,
+                    decoration: InputDecoration(
+                      labelText: 'Property Type',
+                      prefixIcon: Icon(
+                        Icons.home_work_outlined,
+                        size: 20,
+                        color: AppColors.primary,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: Colors.black12),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: Colors.black12),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(color: AppColors.primary),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 14,
+                      ),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'house', child: Text('House')),
+                      DropdownMenuItem(
+                        value: 'apartment',
+                        child: Text('Apartment'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'resident',
+                        child: Text('Resident'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'traditional',
+                        child: Text('Traditional'),
+                      ),
+                    ],
+                    onChanged: (v) => setState(() => _selectedPropertyType = v),
+                    validator: (v) => v == null ? 'Required' : null,
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 14),
+
+              // ── 3. Location ──────────────────────────────────────────────
               _buildCard(
                 title: 'Location',
                 children: [
                   _buildField(
                     controller: _addressController,
                     label: 'Address',
-                    hint: 'e.g. 12 Street, Phnom Penh',
+                    hint: 'Auto-filled when you pick a location',
                     icon: Icons.location_on_outlined,
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Required' : null,
                   ),
                   const SizedBox(height: 14),
                   if (_selectedLocation != null) ...[
@@ -481,7 +591,7 @@ class _UploadPropertyScreenState extends ConsumerState<UploadPropertyScreen> {
 
               const SizedBox(height: 14),
 
-              // ── Details ─────────────────────────────────────────────────
+              // ── 4. Details ───────────────────────────────────────────────
               _buildCard(
                 title: 'Details',
                 children: [
@@ -768,7 +878,7 @@ class _UploadPropertyScreenState extends ConsumerState<UploadPropertyScreen> {
 
   Widget _buildAddSlot(int nextIndex) {
     return GestureDetector(
-      onTap: () => _pickPhoto(nextIndex),
+      onTap: nextIndex == 0 ? () => _pickPhoto(nextIndex) : _pickMultiplePhotos,
       child: Container(
         decoration: BoxDecoration(
           color: Colors.grey.shade100,

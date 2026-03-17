@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'package:zoneer_mobile/features/property/viewmodels/my_properties_provider.dart';
 import 'package:zoneer_mobile/features/property/viewmodels/properties_viewmodel.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -24,6 +25,7 @@ class UploadPropertyViewModel extends Notifier<bool> {
     // The property being edited, or null when creating
     required PropertyModel? existingProperty,
     // Basic fields
+    required String? name,
     required double price,
     required int bedroom,
     required int bathroom,
@@ -31,20 +33,28 @@ class UploadPropertyViewModel extends Notifier<bool> {
     required String address,
     required double latitude,
     required double longitude,
-    required String description,
+    required String? description,
     // Amenities
     required Map<String, dynamic>? propertyFeatures,
     required Map<String, dynamic>? securityFeatures,
     required Map<String, dynamic>? badgeOptions,
+    required String? propertyType,
   }) async {
     final locationUrl = 'https://www.google.com/maps?q=$latitude,$longitude';
     final propertiesNotifier =
         ref.read(propertiesViewModelProvider.notifier);
 
-    // --- Optimistic local state update ---
+    // --- Optimistic update for edits only ---
+    // For NEW properties, we skip the optimistic-add to the global verified list
+    // because new properties require admin verification and would immediately
+    // disappear when refreshProperties() runs. Instead, we add them directly
+    // to myPropertiesProvider so the owner can see them right away with a
+    // "pending" badge (via visiblePropertiesProvider).
     if (existingProperty != null) {
       propertiesNotifier.optimisticallyUpdate(
         existingProperty.copyWith(
+          name: name,
+          clearName: name == null || name.isEmpty,
           price: price,
           bedroom: bedroom,
           bathroom: bathroom,
@@ -58,25 +68,7 @@ class UploadPropertyViewModel extends Notifier<bool> {
           propertyFeatures: propertyFeatures,
           securityFeatures: securityFeatures,
           badgeOptions: badgeOptions,
-        ),
-      );
-    } else {
-      propertiesNotifier.optimisticallyAdd(
-        PropertyModel(
-          id: 'optimistic-${DateTime.now().millisecondsSinceEpoch}',
-          price: price,
-          bedroom: bedroom,
-          bathroom: bathroom,
-          squareArea: squareArea,
-          address: address,
-          locationUrl: locationUrl,
-          latitude: latitude,
-          longitude: longitude,
-          description: description,
-          thumbnail: existingThumbnailUrl ?? '',
-          propertyFeatures: propertyFeatures,
-          securityFeatures: securityFeatures,
-          badgeOptions: badgeOptions,
+          propertyType: propertyType,
         ),
       );
     }
@@ -120,6 +112,7 @@ class UploadPropertyViewModel extends Notifier<bool> {
         await repo.updateProperty(
           PropertyModel(
             id: existingProperty.id,
+            name: name?.isNotEmpty == true ? name : null,
             price: price,
             bedroom: bedroom,
             bathroom: bathroom,
@@ -136,6 +129,7 @@ class UploadPropertyViewModel extends Notifier<bool> {
             propertyFeatures: propertyFeatures,
             securityFeatures: securityFeatures,
             badgeOptions: badgeOptions,
+            propertyType: propertyType,
           ),
         );
         propertyId = existingProperty.id;
@@ -144,6 +138,7 @@ class UploadPropertyViewModel extends Notifier<bool> {
         await repo.createProperty(
           PropertyModel(
             id: '',
+            name: name?.isNotEmpty == true ? name : null,
             price: price,
             bedroom: bedroom,
             bathroom: bathroom,
@@ -158,6 +153,7 @@ class UploadPropertyViewModel extends Notifier<bool> {
             propertyFeatures: propertyFeatures,
             securityFeatures: securityFeatures,
             badgeOptions: badgeOptions,
+            propertyType: propertyType,
           ),
         );
         // Fetch the newly created property to get its ID
@@ -186,6 +182,10 @@ class UploadPropertyViewModel extends Notifier<bool> {
       // Replaces the optimistic item (fake ID) with the real record from
       // Supabase — no loading flash, guaranteed to appear on mobile.
       await propertiesNotifier.refreshProperties();
+
+      // Also refresh "My Properties" so the landlord sees the new/updated item
+      // in their own list (works regardless of verify_status).
+      await ref.read(myPropertiesProvider.notifier).refresh();
     } finally {
       state = false;
     }
