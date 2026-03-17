@@ -5,10 +5,14 @@ class PropertyFilterModel {
   final int? beds; // null means 'Any'
   final String? searchQuery;
 
+  // Sentinel defaults — when the user hasn't touched the filter we show everything.
+  static const double defaultMinPrice = 0;
+  static const double defaultMaxPrice = 10000;
+
   const PropertyFilterModel({
     this.propertyType,
-    this.minPrice = 10,
-    this.maxPrice = 800,
+    this.minPrice = defaultMinPrice,
+    this.maxPrice = defaultMaxPrice,
     this.beds,
     this.searchQuery,
   });
@@ -36,8 +40,8 @@ class PropertyFilterModel {
 
   bool get hasActiveFilters {
     return propertyType != null ||
-        minPrice != 10 ||
-        maxPrice != 800 ||
+        minPrice != defaultMinPrice ||
+        maxPrice != defaultMaxPrice ||
         beds != null;
   }
 

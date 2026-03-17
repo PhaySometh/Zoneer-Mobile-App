@@ -16,7 +16,7 @@ class PropertyRepository {
     final response = await _supabase
         .from('properties')
         .select(
-          'id, price, bedroom, bathroom, address, thumbnail_url, square_area, latitude, longitude, verify_status, property_status',
+          'id, name, price, bedroom, bathroom, address, thumbnail_url, square_area, latitude, longitude, verify_status, property_status, property_features, security_features, badge_options, property_type',
         )
         .eq('verify_status', VerifyStatus.verified.value);
     return (response as List).map((e) => PropertyModel.fromJson(e)).toList();

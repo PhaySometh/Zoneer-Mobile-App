@@ -3,6 +3,7 @@ import 'package:zoneer_mobile/shared/models/enums/verify_status.dart';
 
 class PropertyModel {
   final String id;
+  final String? name;
   final double price;
   final int bedroom;
   final int bathroom;
@@ -17,6 +18,7 @@ class PropertyModel {
   final Map<String, dynamic>? securityFeatures;
   final Map<String, dynamic>? propertyFeatures;
   final Map<String, dynamic>? badgeOptions;
+  final String? propertyType;
 
   final VerifyStatus verifyStatus;
   final PropertyStatus propertyStatus;
@@ -26,6 +28,7 @@ class PropertyModel {
 
   PropertyModel({
     required this.id,
+    this.name,
     required this.price,
     required this.bedroom,
     required this.bathroom,
@@ -39,6 +42,7 @@ class PropertyModel {
     this.securityFeatures,
     this.propertyFeatures,
     this.badgeOptions,
+    this.propertyType,
     this.verifyStatus = VerifyStatus.defaultStatus,
     this.propertyStatus = PropertyStatus.available,
     this.landlordId,
@@ -49,6 +53,7 @@ class PropertyModel {
   factory PropertyModel.fromJson(Map<String, dynamic> json) {
     return PropertyModel(
       id: json['id'] as String,
+      name: json['name'] as String?,
       price: (json['price'] as num).toDouble(),
       bedroom: json['bedroom'] as int,
       bathroom: json['bathroom'] as int,
@@ -62,7 +67,7 @@ class PropertyModel {
           ? (json['longitude'] as num).toDouble()
           : null,
       description: json['description'] as String?,
-      thumbnail: json['thumbnail_url'] as String,
+      thumbnail: (json['thumbnail_url'] as String?) ?? '',
       securityFeatures: json['security_features'] is Map
           ? json['security_features'] as Map<String, dynamic>?
           : null,
@@ -72,6 +77,7 @@ class PropertyModel {
       badgeOptions: json['badge_options'] is Map
           ? json['badge_options'] as Map<String, dynamic>?
           : null,
+      propertyType: json['property_type'] as String?,
       verifyStatus: VerifyStatus.fromValue(json['verify_status']),
       propertyStatus: PropertyStatus.fromValue(json['property_status']),
       landlordId: json['landlord_id'] as String?,
@@ -81,6 +87,8 @@ class PropertyModel {
 
   Map<String, dynamic> toJson() {
     final data = <String, dynamic>{
+      // 'name' is kept even when null so that UPDATE operations can clear it.
+      'name': name,
       'price': price,
       'bedroom': bedroom,
       'bathroom': bathroom,
@@ -94,18 +102,29 @@ class PropertyModel {
       'security_features': securityFeatures,
       'property_features': propertyFeatures,
       'badge_options': badgeOptions,
+      'property_type': propertyType,
       'verify_status': verifyStatus.value,
       'property_status': propertyStatus.value,
       'landlord_id': landlordId,
       'verified_by_admin': verifiedByAdmin,
     };
 
-    data.removeWhere((key, value) => value == null);
+    // Remove nulls except for 'name' and 'description' which can be
+    // intentionally cleared by the user.
+    data.removeWhere(
+      (key, value) =>
+          value == null &&
+          key != 'name' &&
+          key != 'description' &&
+          key != 'property_type',
+    );
     return data;
   }
 
   PropertyModel copyWith({
     String? id,
+    String? name,
+    bool clearName = false,
     double? price,
     int? bedroom,
     int? bathroom,
@@ -119,6 +138,7 @@ class PropertyModel {
     Map<String, dynamic>? securityFeatures,
     Map<String, dynamic>? propertyFeatures,
     Map<String, dynamic>? badgeOptions,
+    String? propertyType,
     VerifyStatus? verifyStatus,
     PropertyStatus? propertyStatus,
     String? landlordId,
@@ -126,6 +146,7 @@ class PropertyModel {
   }) {
     return PropertyModel(
       id: id ?? this.id,
+      name: clearName ? null : name ?? this.name,
       price: price ?? this.price,
       bedroom: bedroom ?? this.bedroom,
       bathroom: bathroom ?? this.bathroom,
@@ -139,6 +160,7 @@ class PropertyModel {
       securityFeatures: securityFeatures ?? this.securityFeatures,
       propertyFeatures: propertyFeatures ?? this.propertyFeatures,
       badgeOptions: badgeOptions ?? this.badgeOptions,
+      propertyType: propertyType ?? this.propertyType,
       verifyStatus: verifyStatus ?? this.verifyStatus,
       propertyStatus: propertyStatus ?? this.propertyStatus,
       landlordId: landlordId ?? this.landlordId,
