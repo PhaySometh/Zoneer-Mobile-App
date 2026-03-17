@@ -9,6 +9,7 @@ import 'package:zoneer_mobile/features/user/views/tenant/edit_profile_screen.dar
 import 'package:zoneer_mobile/features/user/widgets/action_row.dart';
 import 'package:zoneer_mobile/features/user/widgets/profile_header_card.dart';
 import 'package:zoneer_mobile/features/user/widgets/section_card.dart';
+import 'package:zoneer_mobile/features/user/views/schedule_visits.dart';
 import 'package:zoneer_mobile/features/wishlist/views/wishlist_view.dart';
 import 'package:zoneer_mobile/shared/widgets/google_nav_bar.dart';
 
@@ -91,7 +92,14 @@ class TenantProfileSetting extends ConsumerWidget {
                   ActionRow(
                     icon: Icons.event_outlined,
                     label: "Scheduled Visits",
-                    onTap: () {},
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const ScheduleVisits(),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),

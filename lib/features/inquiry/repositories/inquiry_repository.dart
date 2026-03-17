@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zoneer_mobile/core/services/supabase_service.dart';
+import 'package:zoneer_mobile/features/inquiry/models/enums/inquiry_status.dart';
 import 'package:zoneer_mobile/features/inquiry/models/inquiry_model.dart';
 
 class InquiryRepository {
@@ -41,6 +42,39 @@ class InquiryRepository {
         .select()
         .eq('property_id', propertyId);
     return (response as List).map((e) => InquiryModel.fromJson(e)).toList();
+  }
+
+  Future<List<InquiryModel>> getInquiriesForLandlord(String landlordId) async {
+    final propertyResponse = await _supabase
+        .from('properties')
+        .select('id')
+        .eq('landlord_id', landlordId);
+
+    final propertyIds = (propertyResponse as List)
+        .map((e) => e['id'] as String)
+        .toList();
+
+    if (propertyIds.isEmpty) return [];
+
+    final response = await _supabase
+        .from('inquiries')
+        .select()
+        .inFilter('property_id', propertyIds);
+
+    return (response as List).map((e) => InquiryModel.fromJson(e)).toList();
+  }
+
+  Future<InquiryModel> updateInquiryStatus(
+    String inquiryId,
+    InquiryStatus status,
+  ) async {
+    final response = await _supabase
+        .from('inquiries')
+        .update({'status': status.value})
+        .eq('id', inquiryId)
+        .select()
+        .single();
+    return InquiryModel.fromJson(response);
   }
 
   Future<InquiryModel> deleteInquiry(String inquiryId) async {

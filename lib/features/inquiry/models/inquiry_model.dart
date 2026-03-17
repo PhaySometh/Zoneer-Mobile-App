@@ -54,4 +54,6 @@ class InquiryModel {
     data.removeWhere((key, value) => value == null);
     return data;
   }
+
+  copyWith({required InquiryStatus status}) {}
 }

@@ -40,8 +40,8 @@ class _WishlistViewState extends ConsumerState<WishlistView> {
     return Scaffold(
       backgroundColor: const Color(0xFFF6F6F6),
       appBar: AppBar(
-        automaticallyImplyLeading: false,
         backgroundColor: const Color(0xFFF6F6F6),
+        iconTheme: const IconThemeData(color: Colors.black),
         elevation: 0,
         centerTitle: true,
         title: const Text(
