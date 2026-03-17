@@ -101,6 +101,10 @@ class NotificationViewmodel extends AsyncNotifier<List<NotificationModel>> {
       return currentState.value ?? <NotificationModel>[];
     });
   }
+
+  Future<void> createNotification(NotificationModel notification) async {
+    await ref.read(notificationRepositoryProvider).createNotification(notification);
+  }
 }
 
 final notificationsViewModelProvider =

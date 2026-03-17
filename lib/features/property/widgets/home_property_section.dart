@@ -1,23 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:zoneer_mobile/core/providers/navigation_provider.dart';
 import 'package:zoneer_mobile/features/property/models/property_model.dart';
+import 'package:zoneer_mobile/features/property/viewmodels/property_filter_provider.dart';
 import 'package:zoneer_mobile/features/property/views/property_detail_page.dart';
 import 'package:zoneer_mobile/features/property/widgets/property_card.dart';
 
-class HomePropertySection extends StatelessWidget {
+class HomePropertySection extends ConsumerWidget {
   final String title;
+  final String sectionType;
   final AsyncValue<List<PropertyModel>> propertiesAsync;
-  final VoidCallback? onSeeAll;
 
   const HomePropertySection({
     super.key,
     required this.title,
+    required this.sectionType,
     required this.propertiesAsync,
-    this.onSeeAll,
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Column(
       spacing: 10,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -29,7 +31,17 @@ class HomePropertySection extends StatelessWidget {
               title,
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
             ),
-            TextButton(onPressed: onSeeAll, child: Text('See all')),
+            TextButton(
+              onPressed: () {
+                ref
+                    .read(propertyFilterProvider.notifier)
+                    .updatePropertyType(sectionType);
+                ref
+                    .read(navigationProvider.notifier)
+                    .changeTab(NavigationTab.map);
+              },
+              child: Text('See all'),
+            ),
           ],
         ),
         propertiesAsync.when(

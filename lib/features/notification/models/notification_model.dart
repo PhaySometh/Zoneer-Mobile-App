@@ -1,7 +1,7 @@
 import 'package:zoneer_mobile/features/notification/models/enums/notification_type.dart';
 
 class NotificationModel {
-  final String id;
+  final String? id;
   final String userId;
   final String title;
   final String message;
@@ -11,7 +11,7 @@ class NotificationModel {
   final String? createdAt;
 
   const NotificationModel({
-    required this.id,
+    this.id,
     required this.userId,
     required this.title,
     required this.message,
@@ -32,6 +32,21 @@ class NotificationModel {
       metadata: json['metadata'] as Map<String, dynamic>?,
       createdAt: json['created_at'] as String?,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    final data = <String, dynamic>{
+      'id': id,
+      'user_id': userId,
+      'title': title,
+      'message': message,
+      'notification_type': type.value,
+      'is_read': isRead,
+      'metadata': metadata,
+    };
+
+    data.removeWhere((key, value) => value == null);
+    return data;
   }
 
   NotificationModel copyWith({bool? isRead}) {

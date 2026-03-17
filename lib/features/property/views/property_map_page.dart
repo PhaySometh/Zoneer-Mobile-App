@@ -12,12 +12,11 @@ import 'package:zoneer_mobile/features/property/models/property_model.dart';
 import 'package:zoneer_mobile/features/property/providers/map_focus_provider.dart';
 import 'package:zoneer_mobile/features/property/viewmodels/properties_viewmodel.dart';
 import 'package:zoneer_mobile/features/property/viewmodels/property_filter_provider.dart';
-import 'package:zoneer_mobile/features/property/viewmodels/visible_properties_provider.dart';
-import 'package:zoneer_mobile/features/property/widgets/property_filter_sheet.dart';
 import 'package:zoneer_mobile/features/property/widgets/property_map_controls.dart';
 import 'package:zoneer_mobile/features/property/widgets/property_map_detail_sheet.dart';
 import 'package:zoneer_mobile/features/property/widgets/property_map_marker.dart';
 import 'package:zoneer_mobile/features/property/widgets/property_price_pin.dart';
+import 'package:zoneer_mobile/features/property/widgets/search_filter_sheet.dart';
 import 'package:zoneer_mobile/shared/widgets/location_permission_dialog.dart';
 
 class PropertyMapPage extends ConsumerStatefulWidget {
@@ -85,7 +84,7 @@ class _PropertyMapPageState extends ConsumerState<PropertyMapPage> {
       await prefs.setBool(migrationKey, true);
 
       if (updatedCount > 0) {
-        ref.invalidate(propertiesViewModelProvider);
+        ref.invalidate(mapPropertiesProvider);
       }
     } catch (e) {
       debugPrint('Map coordinate migration error: $e');
@@ -143,6 +142,7 @@ class _PropertyMapPageState extends ConsumerState<PropertyMapPage> {
     return filtered;
   }
 
+
   void _onMarkerTapped(PropertyModel property, List<PropertyModel> all) {
     setState(() => _selectedProperty = property);
 
@@ -176,13 +176,41 @@ class _PropertyMapPageState extends ConsumerState<PropertyMapPage> {
     );
   }
 
-  void _showFilterSheet() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => const PropertyFilterSheet(),
-    );
+  Future<void> _showFilterSheet() async {
+    final current = ref.read(propertyFilterProvider);
+    final Map<String, dynamic>? result =
+        await showModalBottomSheet<Map<String, dynamic>?>(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (context) => SearchFilterSheet(
+            initialFilters: {
+              'priceRange': RangeValues(current.minPrice, current.maxPrice),
+              'beds': current.beds ?? 1,
+              'selectedType': current.propertyType,
+            },
+          ),
+        );
+
+    if (!mounted || result == null) return;
+
+    final range = result['priceRange'] as RangeValues?;
+    final beds = result['beds'] as int?;
+    final selectedType = result['selectedType'] as String?;
+
+    ref
+        .read(propertyFilterProvider.notifier)
+        .setFilter(
+          current.copyWith(
+            minPrice: range?.start,
+            maxPrice: range?.end,
+            beds: beds,
+            clearBeds: beds == null,
+            propertyType: selectedType,
+            clearPropertyType:
+                selectedType == null || selectedType.trim().isEmpty,
+          ),
+        );
   }
 
   // ── Marker builders ────────────────────────────────────────────────
@@ -287,7 +315,7 @@ class _PropertyMapPageState extends ConsumerState<PropertyMapPage> {
 
   @override
   Widget build(BuildContext context) {
-    final propertiesAsync = ref.watch(visiblePropertiesProvider);
+    final propertiesAsync = ref.watch(mapPropertiesProvider);
     final filter = ref.watch(propertyFilterProvider);
     final permissionState = ref.watch(locationPermissionProvider);
 
@@ -298,8 +326,7 @@ class _PropertyMapPageState extends ConsumerState<PropertyMapPage> {
       }
     });
 
-    final allProperties = propertiesAsync.asData?.value ?? [];
-    final filteredProperties = _filterProperties(allProperties, filter);
+    final filteredProperties = _filterProperties(propertiesAsync.asData?.value ?? [], filter);
     final userLocation = permissionState.userLocation;
     final usePricePins = _currentZoom < 12;
 
@@ -407,9 +434,7 @@ class _PropertyMapPageState extends ConsumerState<PropertyMapPage> {
                         ),
                       ),
                       TextButton(
-                        onPressed: () => ref
-                            .read(propertiesViewModelProvider.notifier)
-                            .loadProperties(),
+                        onPressed: () => ref.invalidate(mapPropertiesProvider),
                         child: const Text('Retry'),
                       ),
                     ],

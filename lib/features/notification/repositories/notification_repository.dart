@@ -71,6 +71,18 @@ class NotificationRepository {
         .delete()
         .inFilter('id', notificationIds);
   }
+
+  Future<NotificationModel> createNotification(
+    NotificationModel notification,
+  ) async {
+    final response = await _supabase
+        .from('notifications')
+        .insert(notification.toJson())
+        .select()
+        .single();
+
+    return NotificationModel.fromJson(response);
+  }
 }
 
 final notificationRepositoryProvider = Provider<NotificationRepository>((ref) {

@@ -1,34 +1,35 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zoneer_mobile/core/utils/app_colors.dart';
-import 'package:zoneer_mobile/features/property/providers/home_category_provider.dart';
 
-class HomePropertiesCategory extends ConsumerWidget {
+class HomePropertiesCategory extends StatefulWidget {
   const HomePropertiesCategory({super.key});
 
-  static const _categories = [
-    (label: 'All', value: null, icon: Icons.grid_view_outlined),
-    (label: 'Rent House', value: 'house', icon: Icons.home_outlined),
-    (label: 'Apartment', value: 'apartment', icon: Icons.apartment_outlined),
-    (label: 'Resident', value: 'resident', icon: Icons.villa_outlined),
-    (label: 'Traditional', value: 'traditional', icon: Icons.cabin_outlined),
+  @override
+  State<HomePropertiesCategory> createState() => _HomePropertiesCategoryState();
+}
+
+class _HomePropertiesCategoryState extends State<HomePropertiesCategory> {
+  int _selectedIndex = 0;
+
+  final List<Map<String, dynamic>> categories = [
+    {'icon': Icons.home_outlined, 'label': 'Room'},
+    {'icon': Icons.apartment_outlined, 'label': 'Apartment'},
+    {'icon': Icons.villa_outlined, 'label': 'Condo'},
+    {'icon': Icons.cabin_outlined, 'label': 'House'},
   ];
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final selected = ref.watch(homeCategoryProvider);
-
+  Widget build(BuildContext context) {
     return SizedBox(
       height: 44,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        itemCount: _categories.length,
+        itemCount: categories.length,
         itemBuilder: (context, index) {
-          final cat = _categories[index];
-          final isSelected = selected == cat.value;
+          final cat = categories[index];
+          final isSelected = _selectedIndex == index;
           return GestureDetector(
-            onTap: () =>
-                ref.read(homeCategoryProvider.notifier).select(cat.value),
+            onTap: () => setState(() => _selectedIndex = index),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               margin: const EdgeInsets.only(right: 10),
@@ -63,13 +64,13 @@ class HomePropertiesCategory extends ConsumerWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    cat.icon,
+                    cat['icon'] as IconData,
                     size: 20,
                     color: isSelected ? AppColors.white : AppColors.grey,
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    cat.label,
+                    cat['label'] as String,
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: isSelected

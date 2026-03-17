@@ -145,7 +145,7 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
                               isSelected: isSelected,
                               onTap: () {
                                 if (isSelectionMode) {
-                                  _toggleSelection(notification.id);
+                                  _toggleSelection(notification.id!);
                                 } else {
                                   if (!notification.isRead) {
                                     ref
@@ -154,13 +154,13 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
                                               .notifier,
                                         )
                                         .markNotificationAsRead(
-                                          notification.id,
+                                          notification.id!,
                                         );
                                   }
                                 }
                               },
                               onLongPress: () {
-                                _toggleSelection(notification.id);
+                                _toggleSelection(notification.id!);
                               },
                             );
                           },

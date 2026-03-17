@@ -14,14 +14,15 @@ class PropertyModel {
   final double? longitude;
   final String? description;
   final String thumbnail;
+  final String? type;
 
   final Map<String, dynamic>? securityFeatures;
   final Map<String, dynamic>? propertyFeatures;
   final Map<String, dynamic>? badgeOptions;
   final String? propertyType;
 
-  final VerifyStatus verifyStatus;
-  final PropertyStatus propertyStatus;
+  final VerifyStatus? verifyStatus;
+  final PropertyStatus? propertyStatus;
 
   final String? landlordId;
   final String? verifiedByAdmin;
@@ -36,6 +37,7 @@ class PropertyModel {
     required this.address,
     this.locationUrl,
     required this.thumbnail,
+    this.type,
     this.description,
     this.latitude,
     this.longitude,
@@ -68,6 +70,7 @@ class PropertyModel {
           : null,
       description: json['description'] as String?,
       thumbnail: (json['thumbnail_url'] as String?) ?? '',
+      type: json['type'] as String?,
       securityFeatures: json['security_features'] is Map
           ? json['security_features'] as Map<String, dynamic>?
           : null,
@@ -78,8 +81,12 @@ class PropertyModel {
           ? json['badge_options'] as Map<String, dynamic>?
           : null,
       propertyType: json['property_type'] as String?,
-      verifyStatus: VerifyStatus.fromValue(json['verify_status']),
-      propertyStatus: PropertyStatus.fromValue(json['property_status']),
+      verifyStatus: json['verify_status'] != null
+          ? VerifyStatus.fromValue(json['verify_status'] as String?)
+          : null,
+      propertyStatus: json['property_status'] != null
+          ? PropertyStatus.fromValue(json['property_status'] as String?)
+          : null,
       landlordId: json['landlord_id'] as String?,
       verifiedByAdmin: json['verified_by_admin'] as String?,
     );
@@ -98,13 +105,14 @@ class PropertyModel {
       'latitude': latitude,
       'longitude': longitude,
       'thumbnail_url': thumbnail,
+      'type': type,
       'description': description,
       'security_features': securityFeatures,
       'property_features': propertyFeatures,
       'badge_options': badgeOptions,
       'property_type': propertyType,
-      'verify_status': verifyStatus.value,
-      'property_status': propertyStatus.value,
+      'verify_status': verifyStatus?.value,
+      'property_status': propertyStatus?.value,
       'landlord_id': landlordId,
       'verified_by_admin': verifiedByAdmin,
     };
@@ -135,6 +143,7 @@ class PropertyModel {
     double? longitude,
     String? description,
     String? thumbnail,
+    String? type,
     Map<String, dynamic>? securityFeatures,
     Map<String, dynamic>? propertyFeatures,
     Map<String, dynamic>? badgeOptions,
@@ -157,6 +166,7 @@ class PropertyModel {
       longitude: longitude ?? this.longitude,
       description: description ?? this.description,
       thumbnail: thumbnail ?? this.thumbnail,
+      type: type ?? this.type,
       securityFeatures: securityFeatures ?? this.securityFeatures,
       propertyFeatures: propertyFeatures ?? this.propertyFeatures,
       badgeOptions: badgeOptions ?? this.badgeOptions,

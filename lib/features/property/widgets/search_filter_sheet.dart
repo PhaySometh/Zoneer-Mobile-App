@@ -2,24 +2,57 @@ import 'package:flutter/material.dart';
 import 'package:zoneer_mobile/core/utils/app_colors.dart';
 
 class SearchFilterSheet extends StatefulWidget {
-  const SearchFilterSheet({super.key});
+  const SearchFilterSheet({super.key, this.initialFilters});
+
+  final Map<String, dynamic>? initialFilters;
 
   @override
   State<SearchFilterSheet> createState() => _SearchFilterSheetState();
 }
 
 class _SearchFilterSheetState extends State<SearchFilterSheet> {
-  RangeValues priceRange = const RangeValues(500, 5000);
-  int beds = 1;
-  int baths = 1;
-  String selectedType = 'Apartment';
+  static const RangeValues _defaultPriceRange = RangeValues(0, 10000);
+  static const int _defaultBeds = 1;
+  static const int _defaultBaths = 1;
+  static const String _defaultType = 'Any';
+  static const List<(String label, String value)> _propertyTypes = [
+    ('Any', 'Any'),
+    ('Room', 'room'),
+    ('Apartment', 'apartment'),
+    ('Condo', 'condo'),
+    ('House', 'house'),
+  ];
+
+  late RangeValues priceRange;
+  late int beds;
+  late int baths;
+  late String selectedType;
+
+  String _normalizeType(String? rawType) {
+    final normalized = rawType?.trim().toLowerCase();
+    if (normalized == null || normalized.isEmpty || normalized == 'any') {
+      return _defaultType;
+    }
+    final match = _propertyTypes.where((type) => type.$2 == normalized);
+    return match.isEmpty ? _defaultType : normalized;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    final initial = widget.initialFilters;
+    priceRange = (initial?['priceRange'] as RangeValues?) ?? _defaultPriceRange;
+    beds = (initial?['beds'] as int?) ?? _defaultBeds;
+    baths = (initial?['baths'] as int?) ?? _defaultBaths;
+    selectedType = _normalizeType(initial?['selectedType'] as String?);
+  }
 
   void _reset() {
     setState(() {
-      priceRange = const RangeValues(500, 5000);
-      beds = 1;
-      baths = 1;
-      selectedType = 'Apartment';
+      priceRange = _defaultPriceRange;
+      beds = _defaultBeds;
+      baths = _defaultBaths;
+      selectedType = _defaultType;
     });
   }
 
@@ -164,12 +197,13 @@ class _SearchFilterSheetState extends State<SearchFilterSheet> {
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: ['Apartment', 'House', 'Villa', 'Studio']
+              children: _propertyTypes
                   .map(
-                    (type) => _FilterChip(
-                      label: type,
-                      selected: selectedType == type,
-                      onTap: () => setState(() => selectedType = type),
+                    (propertyType) => _FilterChip(
+                      label: propertyType.$1,
+                      selected: selectedType == propertyType.$2,
+                      onTap: () =>
+                          setState(() => selectedType = propertyType.$2),
                     ),
                   )
                   .toList(),

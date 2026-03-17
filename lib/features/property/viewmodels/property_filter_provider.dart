@@ -10,8 +10,15 @@ class PropertyFilterNotifier extends Notifier<PropertyFilterModel> {
   @override
   PropertyFilterModel build() => const PropertyFilterModel();
 
+  void setFilter(PropertyFilterModel filter) {
+    state = filter;
+  }
+
   void updatePropertyType(String? type) {
-    state = state.copyWith(propertyType: type, clearPropertyType: type == null);
+    final normalized = (type == null || type.trim().isEmpty)
+        ? 'Any'
+        : type.trim();
+    state = state.copyWith(propertyType: normalized);
   }
 
   void updatePriceRange(double min, double max) {

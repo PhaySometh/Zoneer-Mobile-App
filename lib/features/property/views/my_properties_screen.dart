@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:zoneer_mobile/core/utils/app_colors.dart';
 import 'package:zoneer_mobile/core/utils/app_decoration.dart';
 import 'package:zoneer_mobile/features/property/models/property_model.dart';
 import 'package:zoneer_mobile/features/property/repositories/property_repository.dart';
-import 'package:zoneer_mobile/features/property/viewmodels/my_properties_provider.dart';
+import 'package:zoneer_mobile/features/property/viewmodels/properties_viewmodel.dart';
 import 'package:zoneer_mobile/features/property/views/upload_property_screen.dart';
 
 class MyPropertiesScreen extends ConsumerStatefulWidget {
@@ -15,9 +16,12 @@ class MyPropertiesScreen extends ConsumerStatefulWidget {
 }
 
 class _MyPropertiesScreenState extends ConsumerState<MyPropertiesScreen> {
+  late String _userId;
+
   @override
   void initState() {
     super.initState();
+    _userId = Supabase.instance.client.auth.currentUser!.id;
   }
 
   Future<void> _deleteProperty(String id) async {
@@ -49,24 +53,19 @@ class _MyPropertiesScreenState extends ConsumerState<MyPropertiesScreen> {
     if (confirmed != true) return;
 
     try {
-      // Optimistically remove from UI first for instant feedback
-      ref.read(myPropertiesProvider.notifier).removeFromState(id);
+      // Delete from database first
+      await ref.read(propertyRepositoryProvider).deleteProperty(id);
 
-      // Show success message immediately
+      // Reload only this screen's lightweight landlord list.
+      ref.invalidate(landlordPropertiesProvider(_userId));
+
       if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('Property deleted.')));
       }
-
-      // Delete from database in the background
-      await ref.read(propertyRepositoryProvider).deleteProperty(id);
-
-      // Reload to ensure consistency with database
-      await ref.read(myPropertiesProvider.notifier).refresh();
     } catch (e) {
-      // Reload the list to restore UI if delete failed
-      await ref.read(myPropertiesProvider.notifier).refresh();
+      ref.invalidate(landlordPropertiesProvider(_userId));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Delete failed: ${e.toString()}')),
@@ -82,13 +81,13 @@ class _MyPropertiesScreenState extends ConsumerState<MyPropertiesScreen> {
         builder: (_) => UploadPropertyScreen(existingProperty: existing),
       ),
     );
-    // Refresh "My Properties" list after returning (does NOT touch global state)
-    ref.read(myPropertiesProvider.notifier).refresh();
+    // Refresh only my list after returning from upload/edit.
+    ref.invalidate(landlordPropertiesProvider(_userId));
   }
 
   @override
   Widget build(BuildContext context) {
-    final propertiesAsync = ref.watch(myPropertiesProvider);
+    final propertiesAsync = ref.watch(landlordPropertiesProvider(_userId));
 
     return Scaffold(
       backgroundColor: const Color(0xFFF6F6F6),
@@ -111,9 +110,7 @@ class _MyPropertiesScreenState extends ConsumerState<MyPropertiesScreen> {
       body: propertiesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text(e.toString())),
-        data: (properties) {
-          final myProperties = properties;
-
+        data: (myProperties) {
           if (myProperties.isEmpty) {
             return Center(
               child: Column(
@@ -217,7 +214,7 @@ class _PropertyManageCard extends StatelessWidget {
                 // Status chip + price
                 Row(
                   children: [
-                    _StatusChip(status: property.propertyStatus.value),
+                    _StatusChip(status: property.propertyStatus!.value),
                     const Spacer(),
                     Text(
                       '\$${property.price.toStringAsFixed(0)}/mo',

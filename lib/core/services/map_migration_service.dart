@@ -14,13 +14,9 @@ class MapMigrationService {
   /// This is a one-time migration to enable map display for existing properties
   Future<int> addCoordinatesToExistingProperties() async {
     try {
-      // Get all properties
-      final properties = await _repository.getProperties();
-
-      // Filter properties without coordinates
-      final propertiesNeedingCoordinates = properties.where((property) {
-        return property.latitude == null || property.longitude == null;
-      }).toList();
+      // Query only records that still miss coordinates.
+      final propertiesNeedingCoordinates = await _repository
+          .getPropertiesMissingCoordinates();
 
       if (propertiesNeedingCoordinates.isEmpty) {
         return 0;

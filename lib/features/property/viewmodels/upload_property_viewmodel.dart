@@ -1,5 +1,7 @@
 import 'dart:typed_data';
-import 'package:zoneer_mobile/features/property/viewmodels/my_properties_provider.dart';
+import 'package:zoneer_mobile/features/notification/models/enums/notification_type.dart';
+import 'package:zoneer_mobile/features/notification/models/notification_model.dart';
+import 'package:zoneer_mobile/features/notification/viewmodels/notification_viewmodel.dart';
 import 'package:zoneer_mobile/features/property/viewmodels/properties_viewmodel.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -33,7 +35,7 @@ class UploadPropertyViewModel extends Notifier<bool> {
     required String address,
     required double latitude,
     required double longitude,
-    required String? description,
+    required String description,
     // Amenities
     required Map<String, dynamic>? propertyFeatures,
     required Map<String, dynamic>? securityFeatures,
@@ -41,37 +43,6 @@ class UploadPropertyViewModel extends Notifier<bool> {
     required String? propertyType,
   }) async {
     final locationUrl = 'https://www.google.com/maps?q=$latitude,$longitude';
-    final propertiesNotifier =
-        ref.read(propertiesViewModelProvider.notifier);
-
-    // --- Optimistic update for edits only ---
-    // For NEW properties, we skip the optimistic-add to the global verified list
-    // because new properties require admin verification and would immediately
-    // disappear when refreshProperties() runs. Instead, we add them directly
-    // to myPropertiesProvider so the owner can see them right away with a
-    // "pending" badge (via visiblePropertiesProvider).
-    if (existingProperty != null) {
-      propertiesNotifier.optimisticallyUpdate(
-        existingProperty.copyWith(
-          name: name,
-          clearName: name == null || name.isEmpty,
-          price: price,
-          bedroom: bedroom,
-          bathroom: bathroom,
-          squareArea: squareArea,
-          address: address,
-          locationUrl: locationUrl,
-          latitude: latitude,
-          longitude: longitude,
-          description: description,
-          thumbnail: existingThumbnailUrl ?? existingProperty.thumbnail,
-          propertyFeatures: propertyFeatures,
-          securityFeatures: securityFeatures,
-          badgeOptions: badgeOptions,
-          propertyType: propertyType,
-        ),
-      );
-    }
 
     state = true;
     try {
@@ -158,10 +129,21 @@ class UploadPropertyViewModel extends Notifier<bool> {
         );
         // Fetch the newly created property to get its ID
         final created = await repo.getPropertiesByLandlordId(userId);
-        propertyId = created
-            .where((p) => p.thumbnail == thumbnailUrl)
-            .first
-            .id;
+        propertyId = created.where((p) => p.thumbnail == thumbnailUrl).first.id;
+
+        // Notify user the newly created property is under review.
+        var helper = NotificationHelper.upload;
+        await ref
+            .read(notificationsViewModelProvider.notifier)
+            .createNotification(
+              NotificationModel(
+                id: userId,
+                userId: userId,
+                title: helper.title,
+                message: helper.message,
+                type: NotificationType.system,
+              ),
+            );
       }
 
       // --- Manage property_media records ---
@@ -178,14 +160,9 @@ class UploadPropertyViewModel extends Notifier<bool> {
         await repo.deleteStorageImages(removedImageUrls);
       }
 
-      // --- Sync home screen with real server data ---
-      // Replaces the optimistic item (fake ID) with the real record from
-      // Supabase — no loading flash, guaranteed to appear on mobile.
-      await propertiesNotifier.refreshProperties();
-
-      // Also refresh "My Properties" so the landlord sees the new/updated item
-      // in their own list (works regardless of verify_status).
-      await ref.read(myPropertiesProvider.notifier).refresh();
+      // --- Refresh map and landlord providers with real server data ---
+      ref.invalidate(mapPropertiesProvider);
+      ref.invalidate(landlordPropertiesProvider(userId));
     } finally {
       state = false;
     }
@@ -194,5 +171,5 @@ class UploadPropertyViewModel extends Notifier<bool> {
 
 final uploadPropertyViewModelProvider =
     NotifierProvider<UploadPropertyViewModel, bool>(
-  UploadPropertyViewModel.new,
-);
+      UploadPropertyViewModel.new,
+    );

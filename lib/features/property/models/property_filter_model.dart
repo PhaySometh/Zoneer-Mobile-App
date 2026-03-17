@@ -1,5 +1,5 @@
 class PropertyFilterModel {
-  final String? propertyType; // 'dorm', 'room', 'apartment', 'house'
+  final String propertyType; // 'Any' means no type filter.
   final double minPrice;
   final double maxPrice;
   final int? beds; // null means 'Any'
@@ -10,7 +10,7 @@ class PropertyFilterModel {
   static const double defaultMaxPrice = 10000;
 
   const PropertyFilterModel({
-    this.propertyType,
+    this.propertyType = 'Any',
     this.minPrice = defaultMinPrice,
     this.maxPrice = defaultMaxPrice,
     this.beds,
@@ -29,7 +29,7 @@ class PropertyFilterModel {
   }) {
     return PropertyFilterModel(
       propertyType: clearPropertyType
-          ? null
+          ? 'Any'
           : propertyType ?? this.propertyType,
       minPrice: minPrice ?? this.minPrice,
       maxPrice: maxPrice ?? this.maxPrice,

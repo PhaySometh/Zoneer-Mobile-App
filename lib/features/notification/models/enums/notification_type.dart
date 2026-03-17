@@ -18,3 +18,26 @@ enum NotificationType {
     );
   }
 }
+
+enum NotificationHelper {
+  notification(
+    'New Notification',
+    'You have a new notification',
+  ),
+  upload(
+    'Property under review',
+    'Your property is currently under review',
+  );
+
+  final String title;
+  final String message;
+
+  const NotificationHelper(this.title, this.message);
+
+  static NotificationHelper fromTitle(String? title) {
+    return NotificationHelper.values.firstWhere(
+      (e) => e.title == title,
+      orElse: () => NotificationHelper.notification,
+    );
+  }
+}

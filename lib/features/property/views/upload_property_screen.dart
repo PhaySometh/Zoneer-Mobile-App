@@ -84,6 +84,7 @@ class _UploadPropertyScreenState extends ConsumerState<UploadPropertyScreen> {
   late final TextEditingController _bathroomController;
   late final TextEditingController _areaController;
   late final TextEditingController _descriptionController;
+  late final TextEditingController _typeController;
 
   LatLng? _selectedLocation;
 
@@ -121,6 +122,7 @@ class _UploadPropertyScreenState extends ConsumerState<UploadPropertyScreen> {
       text: p != null ? p.squareArea.toString() : '',
     );
     _descriptionController = TextEditingController(text: p?.description ?? '');
+    _typeController = TextEditingController(text: p?.type ?? '');
 
     _selectedPropertyType = p?.propertyType;
 
@@ -330,9 +332,7 @@ class _UploadPropertyScreenState extends ConsumerState<UploadPropertyScreen> {
             address: _addressController.text.trim(),
             latitude: _selectedLocation!.latitude,
             longitude: _selectedLocation!.longitude,
-            description: _descriptionController.text.trim().isEmpty
-                ? null
-                : _descriptionController.text.trim(),
+            description: _descriptionController.text.trim(),
             propertyFeatures: propertyFeatures,
             securityFeatures: securityFeatures,
             badgeOptions: badgeOptions,
@@ -630,10 +630,8 @@ class _UploadPropertyScreenState extends ConsumerState<UploadPropertyScreen> {
                             FilteringTextInputFormatter.digitsOnly,
                           ],
                           validator: (v) {
-                            if (v == null || v.trim().isEmpty)
+                            if (v == null || v.trim().isEmpty) {
                               return 'Required';
-                            if (int.tryParse(v.trim()) == null) {
-                              return 'Integer only';
                             }
                             return null;
                           },
@@ -651,10 +649,8 @@ class _UploadPropertyScreenState extends ConsumerState<UploadPropertyScreen> {
                             FilteringTextInputFormatter.digitsOnly,
                           ],
                           validator: (v) {
-                            if (v == null || v.trim().isEmpty)
+                            if (v == null || v.trim().isEmpty) {
                               return 'Required';
-                            if (int.tryParse(v.trim()) == null) {
-                              return 'Integer only';
                             }
                             return null;
                           },
