@@ -1,5 +1,5 @@
-import 'package:zoneer_mobile/features/notification/models/notification_model.dart';
-import 'package:zoneer_mobile/features/notification/models/enums/notification_type.dart';
+import 'package:zoneer_mobile/data/models/notification/notification_model.dart';
+import 'package:zoneer_mobile/data/models/notification/enums/notification_type.dart';
 
 /// Mock notification data for development/testing
 final List<NotificationModel> mockNotifications = [

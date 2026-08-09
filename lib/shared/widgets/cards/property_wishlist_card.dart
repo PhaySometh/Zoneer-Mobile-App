@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:zoneer_mobile/core/utils/app_colors.dart';
-import 'package:zoneer_mobile/features/property/models/property_model.dart';
+import 'package:zoneer_mobile/data/models/property/property_model.dart';
 
 /// Reusable horizontal property card with manage-mode selection support.
 ///

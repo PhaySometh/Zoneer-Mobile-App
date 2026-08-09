@@ -5,7 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'dart:io' show Platform;
 
-import 'package:zoneer_mobile/features/user/viewmodels/user_provider.dart';
+import 'package:zoneer_mobile/presentation/viewmodels/user/user_provider.dart';
 
 class AuthService {
   final SupabaseClient _client;

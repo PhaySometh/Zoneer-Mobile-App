@@ -1,8 +1,8 @@
 import 'dart:math';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:zoneer_mobile/features/property/models/property_model.dart';
-import 'package:zoneer_mobile/features/property/repositories/property_repository.dart';
+import 'package:zoneer_mobile/data/models/property/property_model.dart';
+import 'package:zoneer_mobile/data/repositories/property/property_repository.dart';
 
 /// Service to handle map-related migrations and utilities
 class MapMigrationService {
