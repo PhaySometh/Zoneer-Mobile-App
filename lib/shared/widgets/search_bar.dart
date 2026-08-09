@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:zoneer_mobile/features/property/views/home_search_screen.dart';
+import 'package:zoneer_mobile/presentation/screens/property/home_search_screen.dart';
 
 class SearchBarApp extends ConsumerWidget {
   const SearchBarApp({super.key});

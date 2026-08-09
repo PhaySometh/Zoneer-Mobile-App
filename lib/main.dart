@@ -3,7 +3,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:zoneer_mobile/core/utils/app_colors.dart';
-import 'package:zoneer_mobile/features/user/views/splash_screen.dart';
+import 'package:zoneer_mobile/presentation/screens/user/splash_screen.dart';
 import 'package:device_preview/device_preview.dart';
 
 const bool enableDevicePreview = bool.fromEnvironment(
